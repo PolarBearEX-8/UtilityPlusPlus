@@ -10,12 +10,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class TabCompleterManager implements TabCompleter {
 
     private static final List<String> CHAT_SUBS = Arrays.asList("on", "off", "pmon", "pmoff");
     private static final List<String> STOPNOW_ARGS = Arrays.asList(
             "10s", "30s", "1m", "5m", "10m", "30m", "1h", "now", "cancel", "time", "status"
+    );
+    private static final Set<String> PRIVATE_MESSAGE_COMMANDS = Set.of(
+            "tell", "t", "msg", "w", "whisper", "pm"
     );
 
     /** Returns tab-completion suggestions for UtilityPlus commands. */
@@ -26,7 +31,9 @@ public class TabCompleterManager implements TabCompleter {
             final String alias,
             final String[] args
     ) {
-        final String commandName = alias.toLowerCase();
+        // Use the registered command name instead of the typed alias. This keeps
+        // completion working for aliases such as /t and /endersee as well.
+        final String commandName = command.getName().toLowerCase(Locale.ROOT);
 
         if (commandName.equals("ping")) {
             if (args.length != 1) return Collections.emptyList();
@@ -51,6 +58,17 @@ public class TabCompleterManager implements TabCompleter {
             if (args.length != 1) return Collections.emptyList();
             return onlinePlayers(sender, args[0]);
         }
+
+        if (commandName.equals("gmc")
+                || commandName.equals("gms")
+                || commandName.equals("gmsp")
+                || commandName.equals("gma")
+                || commandName.equals("invsee")
+                || commandName.equals("enderchestsee")
+                || commandName.equals("s")) {
+            if (args.length != 1) return Collections.emptyList();
+            return onlinePlayers(sender, args[0]);
+        }
         if (commandName.equals("ignorelist")
                 || commandName.equals("togglechat")
                 || commandName.equals("toggleprivatemsgs")
@@ -66,7 +84,7 @@ public class TabCompleterManager implements TabCompleter {
                 || commandName.equals("kill")) {
             return Collections.emptyList();
         }
-        if (Arrays.asList("tell", "t", "msg", "w", "whisper", "pm").contains(commandName)) {
+        if (PRIVATE_MESSAGE_COMMANDS.contains(commandName)) {
             if (args.length != 1) return Collections.emptyList();
             return onlinePlayers(sender, args[0]);
         }

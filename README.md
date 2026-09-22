@@ -77,6 +77,7 @@
 - `random-respawn`: enables random death respawns and controls radius, attempts, and target world.
 - `unsafe-blocks`: lists blocks that random respawn should avoid.
 - `join-message` and `leave-message`: control custom join/quit text, vanilla hiding, and broadcast behavior.
+- `bedrock-coordinates`: shows integer Bukkit block coordinates in the action bar for Floodgate usernames starting with `.`. The format supports `{x}`, `{y}`, and `{z}`.
 - `death-message`: controls custom death-message formatting and colors.
 - `tab-list`: configures header/footer lines and refresh interval.
 - `broadcast`: sets the prefix used by `/bc` and `/broadcast`.
