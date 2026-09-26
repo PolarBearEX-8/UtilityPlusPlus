@@ -45,6 +45,9 @@
 | `/broadcast <message>` | Broadcast a message to all players. | `utilityplus.broadcast` |
 | `/kill` | Kill yourself after confirmation. | `utilityplus.kill` |
 | `/stopnow <time\|now\|cancel\|time>` | Manage a shutdown countdown. | `server.stop` |
+| `/invsee <player>` | View or edit an online or offline player's inventory. | `utilityplus.invsee` |
+| `/enderchestsee <player>` (`/endersee`) | View or edit an online or offline player's ender chest. | `utilityplus.enderchestsee` |
+| `/offlinetp <player>` | Teleport to an online player's current location or an offline player's last saved location. | `utilityplus.offlinetp` |
 | `/help [page]` | Show the UtilityPlus help link. | `utilityplus.helps` |
 | `/tpsmore [show]` | Show detailed TPS and performance info. | `utilityplus.tpsmore` |
 | `/tps [show]` | Show detailed TPS and performance info. | `utilityplus.tpsmore` |
@@ -65,6 +68,9 @@
 | `utilityplus.broadcast` | `op` | Broadcast messages. |
 | `utilityplus.kill` | `true` | Use the self-kill confirmation command. |
 | `server.stop` | `op` | Start, cancel, or inspect shutdown countdowns. |
+| `utilityplus.invsee` | `op` | View and edit player inventories. |
+| `utilityplus.enderchestsee` | `op` | View and edit player ender chests. |
+| `utilityplus.offlinetp` | `op` | Teleport to a player's saved location. |
 | `utilityplus.tpsmore` | `op` | View detailed TPS and performance info. |
 | `utilityplus.ping` | `true` | View your own ping. |
 | `utilityplus.ping.others` | `op` | View other players' pings. |

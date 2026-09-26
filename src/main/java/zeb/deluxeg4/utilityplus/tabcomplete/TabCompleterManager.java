@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.TreeSet;
 
 public class TabCompleterManager implements TabCompleter {
 
@@ -65,9 +67,12 @@ public class TabCompleterManager implements TabCompleter {
                 || commandName.equals("gma")
                 || commandName.equals("invsee")
                 || commandName.equals("enderchestsee")
+                || commandName.equals("offlinetp")
                 || commandName.equals("s")) {
             if (args.length != 1) return Collections.emptyList();
-            return onlinePlayers(sender, args[0]);
+            return commandName.equals("invsee") || commandName.equals("enderchestsee") || commandName.equals("offlinetp")
+                    ? knownPlayers(sender, args[0])
+                    : onlinePlayers(sender, args[0]);
         }
         if (commandName.equals("ignorelist")
                 || commandName.equals("togglechat")
@@ -104,6 +109,26 @@ public class TabCompleterManager implements TabCompleter {
             }
         }
         return names;
+    }
+
+    private List<String> knownPlayers(final CommandSender sender, final String input) {
+        final String lowerInput = input.toLowerCase(Locale.ROOT);
+        final Set<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (final Player player : Bukkit.getOnlinePlayers()) {
+            if ((!(sender instanceof Player) || !player.equals(sender))
+                    && player.getName().toLowerCase(Locale.ROOT).startsWith(lowerInput)) {
+                names.add(player.getName());
+            }
+        }
+        for (final OfflinePlayer player : Bukkit.getOfflinePlayers()) {
+            final String name = player.getName();
+            if (name != null && player.hasPlayedBefore()
+                    && (!(sender instanceof Player) || !player.getUniqueId().equals(((Player) sender).getUniqueId()))
+                    && name.toLowerCase(Locale.ROOT).startsWith(lowerInput)) {
+                names.add(name);
+            }
+        }
+        return new ArrayList<>(names);
     }
 
     private List<String> filter(final List<String> options, final String input) {

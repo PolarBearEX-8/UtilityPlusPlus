@@ -100,7 +100,7 @@ death-message:
 # -----------------------------------------------
 # Tab List Header/Footer Settings
 # -----------------------------------------------
-# Placeholders: %server_tps_1_colored%, %server_online%,
+# Placeholders: %server_tps_1_colored%, %tps%, %server_online%,
 # %player_ping%, %server_uptime%
 
 tab-list:
