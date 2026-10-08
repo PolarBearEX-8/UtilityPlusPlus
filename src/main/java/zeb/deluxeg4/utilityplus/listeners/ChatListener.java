@@ -1,48 +1,48 @@
 package zeb.deluxeg4.utilityplus.listeners;
 
+import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import java.util.Iterator;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import zeb.deluxeg4.utilityplus.managers.ChatManager;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import zeb.deluxeg4.utilityplus.managers.ChatManager;
 import zeb.deluxeg4.utilityplus.util.Messages;
+import zeb.deluxeg4.utilityplus.util.PlayerChatNames;
 
-import java.util.Iterator;
-
-public class ChatListener implements Listener {
-
+public class ChatListener
+implements Listener {
     private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
-
     private final ChatManager chatManager;
 
     public ChatListener(ChatManager chatManager) {
         this.chatManager = chatManager;
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority=EventPriority.NORMAL, ignoreCancelled=true)
     public void onPlayerChat(AsyncChatEvent event) {
         Player sender = event.getPlayer();
-        event.message(highlightMessage(event.message()));
-
-        if (chatManager.isGlobalMuted(sender.getUniqueId())) {
+        event.message(PlayerChatNames.decorate(this.highlightMessage(event.message())));
+        ChatRenderer originalRenderer = event.renderer();
+        event.renderer((source, displayName, message, viewer) -> originalRenderer.render(source, PlayerChatNames.decorate(displayName), message, viewer));
+        if (this.chatManager.isGlobalMuted(sender.getUniqueId())) {
             event.setCancelled(true);
-            Messages.send(sender, "&cGlobal chat is disabled. Use &e/chat on&c to re-enable.");
+            Messages.send((CommandSender)sender, "&6You have toggled off chat");
             return;
         }
-
-        Iterator<Audience> recipients = event.viewers().iterator();
+        Iterator recipients = event.viewers().iterator();
         while (recipients.hasNext()) {
-            Audience audience = recipients.next();
-            if (audience instanceof Player recipient
-                    && (chatManager.isGlobalMuted(recipient.getUniqueId())
-                    || chatManager.isIgnoring(recipient.getUniqueId(), sender.getName()))) {
-                recipients.remove();
-            }
+            Player recipient;
+            Audience audience = (Audience)recipients.next();
+            if (!(audience instanceof Player) || !this.chatManager.isGlobalMuted((recipient = (Player)audience).getUniqueId()) && !this.chatManager.isIgnoring(recipient.getUniqueId(), sender.getName())) continue;
+            recipients.remove();
         }
     }
 
@@ -54,7 +54,6 @@ public class ChatListener implements Listener {
         if (!plain.startsWith(">")) {
             return message;
         }
-
-        return Component.text(plain, NamedTextColor.GREEN);
+        return Component.text((String)plain, (TextColor)NamedTextColor.GREEN);
     }
 }

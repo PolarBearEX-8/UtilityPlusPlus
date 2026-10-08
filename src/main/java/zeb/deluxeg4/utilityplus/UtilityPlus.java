@@ -1,34 +1,40 @@
 package zeb.deluxeg4.utilityplus;
 
+import java.util.List;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.event.Listener;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import zeb.deluxeg4.utilityplus.commands.BroadcastCommand;
-import zeb.deluxeg4.utilityplus.commands.HelpCommand;
 import zeb.deluxeg4.utilityplus.commands.GamemodeCommand;
-import zeb.deluxeg4.utilityplus.commands.InventorySeeCommand;
+import zeb.deluxeg4.utilityplus.commands.HelpCommand;
 import zeb.deluxeg4.utilityplus.commands.IgnoreCommand;
 import zeb.deluxeg4.utilityplus.commands.IgnoreListCommand;
+import zeb.deluxeg4.utilityplus.commands.InventorySeeCommand;
 import zeb.deluxeg4.utilityplus.commands.KillCommand;
-import zeb.deluxeg4.utilityplus.commands.OverclockCommand;
 import zeb.deluxeg4.utilityplus.commands.OfflineTpCommand;
+import zeb.deluxeg4.utilityplus.commands.OverclockCommand;
 import zeb.deluxeg4.utilityplus.commands.PMCommand;
 import zeb.deluxeg4.utilityplus.commands.PingCommand;
 import zeb.deluxeg4.utilityplus.commands.ReloadCommand;
-import zeb.deluxeg4.utilityplus.commands.StopNowCommand;
 import zeb.deluxeg4.utilityplus.commands.STapwarp;
+import zeb.deluxeg4.utilityplus.commands.StopNowCommand;
 import zeb.deluxeg4.utilityplus.commands.TPSMoreCommand;
 import zeb.deluxeg4.utilityplus.commands.ToggleChatCommand;
 import zeb.deluxeg4.utilityplus.commands.ToggleDeathMessagesCommand;
 import zeb.deluxeg4.utilityplus.commands.TogglePrivateMessagesCommand;
 import zeb.deluxeg4.utilityplus.commands.UptimeCommand;
 import zeb.deluxeg4.utilityplus.commands.VanishCommand;
+import zeb.deluxeg4.utilityplus.invsee.InventorySeeMode;
+import zeb.deluxeg4.utilityplus.invsee.InventorySeeSessionManager;
+import zeb.deluxeg4.utilityplus.invsee.PendingInventoryOrderManager;
 import zeb.deluxeg4.utilityplus.listeners.AnvilListener;
 import zeb.deluxeg4.utilityplus.listeners.ChatListener;
 import zeb.deluxeg4.utilityplus.listeners.DeathMessageListener;
-import zeb.deluxeg4.utilityplus.listeners.JoinMessageListener;
 import zeb.deluxeg4.utilityplus.listeners.InventorySeeListener;
+import zeb.deluxeg4.utilityplus.listeners.JoinMessageListener;
 import zeb.deluxeg4.utilityplus.listeners.PendingInventoryOrderListener;
 import zeb.deluxeg4.utilityplus.listeners.SpawnListener;
 import zeb.deluxeg4.utilityplus.listeners.TabListListener;
@@ -40,15 +46,12 @@ import zeb.deluxeg4.utilityplus.managers.DeathMessageManager;
 import zeb.deluxeg4.utilityplus.managers.SpawnManager;
 import zeb.deluxeg4.utilityplus.managers.TabListManager;
 import zeb.deluxeg4.utilityplus.managers.TickMonitor;
-import zeb.deluxeg4.utilityplus.invsee.InventorySeeMode;
-import zeb.deluxeg4.utilityplus.invsee.InventorySeeSessionManager;
-import zeb.deluxeg4.utilityplus.invsee.PendingInventoryOrderManager;
 import zeb.deluxeg4.utilityplus.tabcomplete.TabCompleterManager;
+import zeb.deluxeg4.utilityplus.util.Messages;
+import zeb.deluxeg4.utilityplus.util.PlayerChatNames;
 
-import java.util.List;
-
-public class UtilityPlus extends JavaPlugin {
-
+public class UtilityPlus
+extends JavaPlugin {
     private SpawnManager spawnManager;
     private ChatManager chatManager;
     private DeathMessageManager deathMessageManager;
@@ -61,173 +64,142 @@ public class UtilityPlus extends JavaPlugin {
     private InventorySeeSessionManager inventorySeeSessionManager;
     private InventorySeeSessionManager enderChestSeeSessionManager;
 
-    /** Enables UtilityPlus and registers commands, listeners, and managers. */
-    @Override
     public void onEnable() {
-        saveDefaultConfig();
-
-        spawnManager = new SpawnManager(this);
-        chatManager = new ChatManager(this);
-        deathMessageManager = new DeathMessageManager(this);
-        tabListManager = new TabListManager(this);
-        announcementManager = new AnnouncementManager(this);
-        tickMonitor = new TickMonitor(this);
-        cpuMonitor = new CpuMonitor(this);
-        pendingInventoryOrderManager = new PendingInventoryOrderManager(this);
-        inventorySeeSessionManager = new InventorySeeSessionManager(this, InventorySeeMode.INVENTORY, pendingInventoryOrderManager);
-        enderChestSeeSessionManager = new InventorySeeSessionManager(this, InventorySeeMode.ENDER_CHEST, pendingInventoryOrderManager);
-
-        registerCommand("ignore", new IgnoreCommand(chatManager, false, false));
-        registerCommand("ignorehard", new IgnoreCommand(chatManager, true, false));
-        registerCommand("ignoredeathmsgs", new IgnoreCommand(chatManager, true, true));
-        registerCommand("ignorelist", new IgnoreListCommand(chatManager));
-        registerCommand("togglechat", new ToggleChatCommand(chatManager));
-        registerCommand("toggleprivatemsgs", new TogglePrivateMessagesCommand(chatManager));
-        registerCommand("toggledeathmsgs", new ToggleDeathMessagesCommand(chatManager, false));
-        registerCommand("toggledeathmsgshard", new ToggleDeathMessagesCommand(chatManager, true));
-
-        final PMCommand privateMessageCommand = new PMCommand(chatManager);
-        registerCommands(privateMessageCommand, "tell", "msg", "w", "whisper", "pm", "r", "reply", "l", "last");
-
-        registerCommand("upreload", new ReloadCommand(this));
-
-        vanishCommand = new VanishCommand(this);
-        registerCommand("v", vanishCommand);
-
-        final BroadcastCommand broadcastCommand = new BroadcastCommand(this);
-        registerCommands(broadcastCommand, "bc", "broadcast");
-
-        final GamemodeCommand gamemodeCommand = new GamemodeCommand();
-        registerCommands(gamemodeCommand, "gmc", "gms", "gmsp", "gma");
-
-        registerCommand("kill", new KillCommand(this));
-        registerCommand("stopnow", new StopNowCommand(this));
-        final OverclockCommand overclockCommand = new OverclockCommand(this);
-        registerCommand("overclock", overclockCommand);
-
-        final InventorySeeCommand inventorySeeCommand = new InventorySeeCommand(this);
-        registerCommands(inventorySeeCommand, "invsee", "enderchestsee");
-        registerCommand("offlinetp", new OfflineTpCommand(this));
-        registerCommand("s", new STapwarp());
-
-        registerCommand("help", new HelpCommand(this));
-
-        final TPSMoreCommand tpsMoreCommand = new TPSMoreCommand(tickMonitor, cpuMonitor);
-        registerCommands(tpsMoreCommand, "tpsmore", "tps");
-
-        final PingCommand pingCommand = new PingCommand();
-        registerCommands(pingCommand, "ping", "pingall");
-        registerCommand("uptime", new UptimeCommand());
-
-        final TabCompleterManager tabCompleter = new TabCompleterManager();
-        final List<String> commandNames = List.of(
-                "ignore", "ignorehard", "ignorelist", "ignoredeathmsgs",
-                "togglechat", "toggleprivatemsgs", "toggledeathmsgs", "toggledeathmsgshard",
-                "tell", "msg", "w", "whisper", "pm", "r", "reply", "l", "last",
-                "upreload", "stopnow",
-                "v", "bc", "broadcast", "gmc", "gms", "gmsp", "gma",
-                "kill", "overclock", "invsee", "enderchestsee", "offlinetp", "s", "help",
-                "tpsmore", "tps", "ping", "pingall",
-                "uptime"
-        );
-        registerTabCompleters(tabCompleter, commandNames);
-        command("overclock").setTabCompleter(overclockCommand);
-
-        getServer().getPluginManager().registerEvents(new SpawnListener(spawnManager), this);
-        getServer().getPluginManager().registerEvents(new ChatListener(chatManager), this);
-        getServer().getPluginManager().registerEvents(new AnvilListener(), this);
-        getServer().getPluginManager().registerEvents(new JoinMessageListener(this), this);
-        getServer().getPluginManager().registerEvents(new DeathMessageListener(chatManager, deathMessageManager, this), this);
-        getServer().getPluginManager().registerEvents(new TabListListener(this, tabListManager), this);
-        getServer().getPluginManager().registerEvents(new VanishListener(this, vanishCommand), this);
-        getServer().getPluginManager().registerEvents(new InventorySeeListener(this), this);
-        getServer().getPluginManager().registerEvents(new PendingInventoryOrderListener(this), this);
-
-        getLogger().info("UtilityPlus enabled!");
+        this.saveDefaultConfig();
+        Messages.initialize(this);
+        this.spawnManager = new SpawnManager(this);
+        this.chatManager = new ChatManager(this);
+        this.deathMessageManager = new DeathMessageManager(this);
+        this.tabListManager = new TabListManager(this);
+        this.announcementManager = new AnnouncementManager(this);
+        this.tickMonitor = new TickMonitor(this);
+        this.cpuMonitor = new CpuMonitor(this);
+        this.pendingInventoryOrderManager = new PendingInventoryOrderManager(this);
+        this.inventorySeeSessionManager = new InventorySeeSessionManager(this, InventorySeeMode.INVENTORY, this.pendingInventoryOrderManager);
+        this.enderChestSeeSessionManager = new InventorySeeSessionManager(this, InventorySeeMode.ENDER_CHEST, this.pendingInventoryOrderManager);
+        this.registerCommand("ignore", new IgnoreCommand(this.chatManager, false, false));
+        this.registerCommand("ignorehard", new IgnoreCommand(this.chatManager, true, false));
+        this.registerCommand("ignoredeathmsgs", new IgnoreCommand(this.chatManager, true, true));
+        this.registerCommand("ignorelist", new IgnoreListCommand(this.chatManager));
+        this.registerCommand("togglechat", new ToggleChatCommand(this.chatManager));
+        this.registerCommand("toggleprivatemsgs", new TogglePrivateMessagesCommand(this.chatManager));
+        this.registerCommand("toggledeathmsgs", new ToggleDeathMessagesCommand(this.chatManager, false));
+        this.registerCommand("toggledeathmsgshard", new ToggleDeathMessagesCommand(this.chatManager, true));
+        PMCommand privateMessageCommand = new PMCommand(this.chatManager);
+        this.registerCommands(privateMessageCommand, "tell", "msg", "w", "whisper", "pm", "r", "reply", "l", "last");
+        this.registerCommand("upreload", new ReloadCommand(this));
+        this.vanishCommand = new VanishCommand(this);
+        this.registerCommand("v", this.vanishCommand);
+        BroadcastCommand broadcastCommand = new BroadcastCommand(this);
+        this.registerCommands(broadcastCommand, "bc", "broadcast");
+        GamemodeCommand gamemodeCommand = new GamemodeCommand();
+        this.registerCommands(gamemodeCommand, "gmc", "gms", "gmsp", "gma");
+        this.registerCommand("kill", new KillCommand(this));
+        this.registerCommand("stopnow", new StopNowCommand(this));
+        OverclockCommand overclockCommand = new OverclockCommand(this);
+        this.registerCommand("overclock", (CommandExecutor)overclockCommand);
+        InventorySeeCommand inventorySeeCommand = new InventorySeeCommand(this);
+        this.registerCommands(inventorySeeCommand, "invsee", "enderchestsee");
+        this.registerCommand("offlinetp", new OfflineTpCommand(this));
+        this.registerCommand("s", new STapwarp());
+        this.registerCommand("help", new HelpCommand(this));
+        TPSMoreCommand tpsMoreCommand = new TPSMoreCommand(this.tickMonitor, this.cpuMonitor);
+        this.registerCommands(tpsMoreCommand, "tpsmore", "tps");
+        PingCommand pingCommand = new PingCommand();
+        this.registerCommands(pingCommand, "ping", "pingall");
+        this.registerCommand("uptime", new UptimeCommand());
+        TabCompleterManager tabCompleter = new TabCompleterManager();
+        List<String> commandNames = List.of("ignore", "ignorehard", "ignorelist", "ignoredeathmsgs", "togglechat", "toggleprivatemsgs", "toggledeathmsgs", "toggledeathmsgshard", "tell", "msg", "w", "whisper", "pm", "r", "reply", "l", "last", "upreload", "stopnow", "v", "bc", "broadcast", "gmc", "gms", "gmsp", "gma", "kill", "overclock", "invsee", "enderchestsee", "offlinetp", "s", "help", "tpsmore", "tps", "ping", "pingall", "uptime");
+        this.registerTabCompleters(tabCompleter, commandNames);
+        this.command("overclock").setTabCompleter((TabCompleter)overclockCommand);
+        this.getServer().getPluginManager().registerEvents((Listener)new PlayerChatNames(), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new SpawnListener(this.spawnManager), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new ChatListener(this.chatManager), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new AnvilListener(), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new JoinMessageListener(this), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new DeathMessageListener(this.chatManager, this.deathMessageManager, this), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new TabListListener((Plugin)this, this.tabListManager), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new VanishListener(this, this.vanishCommand), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new InventorySeeListener(this), (Plugin)this);
+        this.getServer().getPluginManager().registerEvents((Listener)new PendingInventoryOrderListener(this), (Plugin)this);
+        this.getLogger().info("UtilityPlus enabled!");
     }
 
-    /** Disables UtilityPlus and flushes persistent manager state. */
-    @Override
     public void onDisable() {
-        if (spawnManager != null) {
-            spawnManager.saveData();
+        if (this.spawnManager != null) {
+            this.spawnManager.saveData();
         }
-        if (chatManager != null) {
-            chatManager.saveData();
+        if (this.chatManager != null) {
+            this.chatManager.saveData();
         }
-        if (tabListManager != null) {
-            tabListManager.stop();
+        if (this.tabListManager != null) {
+            this.tabListManager.stop();
         }
-        if (announcementManager != null) {
-            announcementManager.stop();
+        if (this.announcementManager != null) {
+            this.announcementManager.stop();
         }
-        if (vanishCommand != null) {
-            vanishCommand.saveData();
+        if (this.vanishCommand != null) {
+            this.vanishCommand.saveData();
         }
-        if (inventorySeeSessionManager != null) {
-            inventorySeeSessionManager.closeAll();
+        if (this.inventorySeeSessionManager != null) {
+            this.inventorySeeSessionManager.closeAll();
         }
-        if (enderChestSeeSessionManager != null) {
-            enderChestSeeSessionManager.closeAll();
+        if (this.enderChestSeeSessionManager != null) {
+            this.enderChestSeeSessionManager.closeAll();
         }
-        getLogger().info("UtilityPlus disabled!");
+        this.getLogger().info("UtilityPlus disabled!");
     }
 
-    /** Returns the spawn manager. */
     public SpawnManager getSpawnManager() {
-        return spawnManager;
+        return this.spawnManager;
     }
 
-    /** Returns the chat manager. */
     public ChatManager getChatManager() {
-        return chatManager;
+        return this.chatManager;
     }
 
-    /** Returns the death-message manager. */
     public DeathMessageManager getDeathMessageManager() {
-        return deathMessageManager;
+        return this.deathMessageManager;
     }
 
-    /** Returns the tab-list manager. */
     public TabListManager getTabListManager() {
-        return tabListManager;
+        return this.tabListManager;
     }
 
-    /** Returns the announcement manager. */
     public AnnouncementManager getAnnouncementManager() {
-        return announcementManager;
+        return this.announcementManager;
     }
 
     public PendingInventoryOrderManager getPendingInventoryOrderManager() {
-        return pendingInventoryOrderManager;
+        return this.pendingInventoryOrderManager;
     }
 
     public InventorySeeSessionManager getInventorySeeSessionManager() {
-        return inventorySeeSessionManager;
+        return this.inventorySeeSessionManager;
     }
 
     public InventorySeeSessionManager getEnderChestSeeSessionManager() {
-        return enderChestSeeSessionManager;
+        return this.enderChestSeeSessionManager;
     }
 
-    private void registerCommands(final CommandExecutor executor, final String... names) {
-        for (final String name : names) {
-            registerCommand(name, executor);
+    private void registerCommands(CommandExecutor executor, String ... names) {
+        for (String name : names) {
+            this.registerCommand(name, executor);
         }
     }
 
-    private void registerCommand(final String name, final CommandExecutor executor) {
-        command(name).setExecutor(executor);
+    private void registerCommand(String name, CommandExecutor executor) {
+        this.command(name).setExecutor(executor);
     }
 
-    private void registerTabCompleters(final TabCompleter completer, final List<String> names) {
-        for (final String name : names) {
-            command(name).setTabCompleter(completer);
+    private void registerTabCompleters(TabCompleter completer, List<String> names) {
+        for (String name : names) {
+            this.command(name).setTabCompleter(completer);
         }
     }
 
-    private PluginCommand command(final String name) {
-        final PluginCommand command = getCommand(name);
+    private PluginCommand command(String name) {
+        PluginCommand command = this.getCommand(name);
         if (command == null) {
             throw new IllegalStateException("Command '/" + name + "' is missing from plugin.yml");
         }

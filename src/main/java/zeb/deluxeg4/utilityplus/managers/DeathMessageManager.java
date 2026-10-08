@@ -1,12 +1,23 @@
 package zeb.deluxeg4.utilityplus.managers;
 
-import zeb.deluxeg4.utilityplus.UtilityPlus;
-import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import org.bukkit.NamespacedKey;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.damage.DamageType;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -15,67 +26,54 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import zeb.deluxeg4.utilityplus.UtilityPlus;
 
 public class DeathMessageManager {
-
     private final UtilityPlus plugin;
-    private final Map<String, List<String>> messages = new HashMap<>();
-    private final Map<String, List<String>> simpleMessages = createSimpleMessages();
+    private final Map<String, List<String>> messages = new HashMap<String, List<String>>();
+    private final Map<String, List<String>> simpleMessages = this.createSimpleMessages();
 
     public DeathMessageManager(UtilityPlus plugin) {
         this.plugin = plugin;
-        reload();
+        this.reload();
     }
 
     public void reload() {
-        messages.clear();
-        File file = new File(plugin.getDataFolder(), "message.json");
+        this.messages.clear();
+        File file = new File(this.plugin.getDataFolder(), "message.json");
         if (!file.exists()) {
-            plugin.saveResource("message.json", false);
+            this.plugin.saveResource("message.json", false);
         }
-
-        try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8)) {
-            load(JsonParser.parseReader(reader).getAsJsonObject());
+        try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8);){
+            this.load(JsonParser.parseReader((Reader)reader).getAsJsonObject());
             return;
-        } catch (Exception e) {
-            plugin.getLogger().warning("[DeathMessageManager] Could not load message.json from data folder, using bundled defaults.");
         }
-
-        try (InputStream stream = plugin.getResource("message.json")) {
-            if (stream == null) {
-                plugin.getLogger().warning("[DeathMessageManager] Bundled message.json is missing.");
-                return;
+        catch (Exception e) {
+            this.plugin.getLogger().warning("[DeathMessageManager] Could not load message.json from data folder, using bundled defaults.");
+            try (InputStream stream = this.plugin.getResource("message.json");){
+                if (stream == null) {
+                    this.plugin.getLogger().warning("[DeathMessageManager] Bundled message.json is missing.");
+                    return;
+                }
+                this.load(JsonParser.parseReader((Reader)new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject());
             }
-            load(JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8)).getAsJsonObject());
-        } catch (IOException e) {
-            plugin.getLogger().warning("[DeathMessageManager] Could not load bundled message.json.");
+            catch (IOException e2) {
+                this.plugin.getLogger().warning("[DeathMessageManager] Could not load bundled message.json.");
+            }
+            return;
         }
     }
 
     public String getMessage(PlayerDeathEvent event, Player victim, Player killer, boolean selfKillCommand) {
-        String category = resolveCategory(event, victim, killer, selfKillCommand);
-        String template = randomTemplate(category);
+        String category = this.resolveCategory(event, victim, killer, selfKillCommand);
+        String template = this.randomTemplate(category);
         if (template == null && !"generic".equals(category)) {
-            template = randomTemplate("generic");
+            template = this.randomTemplate("generic");
         }
         if (template == null) {
-            return fallbackMessage(victim, killer, selfKillCommand);
+            return this.fallbackMessage(victim, killer, selfKillCommand);
         }
-
-        return applyPlaceholders(template, victim, killer);
+        return this.applyPlaceholders(template, victim, killer);
     }
 
     public Player resolveKiller(PlayerDeathEvent event, Player victim) {
@@ -83,12 +81,11 @@ public class DeathMessageManager {
         if (killer != null) {
             return killer;
         }
-
         Entity causingEntity = event.getDamageSource().getCausingEntity();
-        if (causingEntity instanceof Player player) {
+        if (causingEntity instanceof Player) {
+            Player player = (Player)causingEntity;
             return player;
         }
-
         return null;
     }
 
@@ -96,7 +93,6 @@ public class DeathMessageManager {
         if (killer == null) {
             return null;
         }
-
         ItemStack item = killer.getInventory().getItemInMainHand();
         if (item == null || item.getType() == Material.AIR) {
             return null;
@@ -105,36 +101,27 @@ public class DeathMessageManager {
     }
 
     public String getSimpleCauseName(PlayerDeathEvent event, Player victim, Player killer) {
-        if (killer == null || getKillerItem(killer) != null) {
+        String entityName;
+        if (killer == null || this.getKillerItem(killer) != null) {
             return null;
         }
-
         Entity direct = event.getDamageSource().getDirectEntity();
-        if (direct != null) {
-            String entityName = simpleNameForEntity(direct.getType());
-            if (entityName != null) {
-                return entityName;
-            }
+        if (direct != null && (entityName = this.simpleNameForEntity(direct.getType())) != null) {
+            return entityName;
         }
-
         return null;
     }
 
     private void load(JsonObject root) {
-        Gson gson = new Gson();
-        for (Map.Entry<String, JsonElement> entry : root.entrySet()) {
-            if (!entry.getValue().isJsonArray()) {
-                continue;
+        for (Map.Entry entry : root.entrySet()) {
+            if (!((JsonElement)entry.getValue()).isJsonArray()) continue;
+            ArrayList<String> list = new ArrayList<String>();
+            for (JsonElement element : ((JsonElement)entry.getValue()).getAsJsonArray()) {
+                if (!element.isJsonPrimitive()) continue;
+                list.add(element.getAsString());
             }
-            List<String> list = new ArrayList<>();
-            for (JsonElement element : entry.getValue().getAsJsonArray()) {
-                if (element.isJsonPrimitive()) {
-                    list.add(element.getAsString());
-                }
-            }
-            if (!list.isEmpty()) {
-                messages.put(entry.getKey().toLowerCase(Locale.ROOT), list);
-            }
+            if (list.isEmpty()) continue;
+            this.messages.put(((String)entry.getKey()).toLowerCase(Locale.ROOT), list);
         }
     }
 
@@ -142,81 +129,72 @@ public class DeathMessageManager {
         if (selfKillCommand) {
             return "command_kill";
         }
-
         if (killer != null) {
             ItemStack weapon = killer.getInventory().getItemInMainHand();
-            if (hasCustomName(weapon) && messages.containsKey("player_using_item")) {
+            if (this.hasCustomName(weapon) && this.messages.containsKey("player_using_item")) {
                 return "player_using_item";
             }
             return "player_kill";
         }
-
         EntityDamageEvent damageEvent = victim.getLastDamageCause();
         if (damageEvent == null) {
             return "unknown";
         }
-
-        EntityType killerType = event.getDamageSource().getCausingEntity() != null
-                ? event.getDamageSource().getCausingEntity().getType()
-                : null;
-        String entityCategory = categoryForEntity(killerType);
+        EntityType killerType = event.getDamageSource().getCausingEntity() != null ? event.getDamageSource().getCausingEntity().getType() : null;
+        String entityCategory = this.categoryForEntity(killerType);
         if (entityCategory != null) {
             return entityCategory;
         }
-
-        String damageTypeCategory = categoryForDamageType(event.getDamageSource().getDamageType());
+        String damageTypeCategory = this.categoryForDamageType(event.getDamageSource().getDamageType());
         if (damageTypeCategory != null) {
             return damageTypeCategory;
         }
-
-        return categoryForCause(damageEvent.getCause());
+        return this.categoryForCause(damageEvent.getCause());
     }
 
     private String categoryForEntity(EntityType type) {
         if (type == null) {
             return null;
         }
-
         return switch (type) {
-            case ZOMBIE, HUSK, DROWNED, ZOMBIE_VILLAGER -> "zombie";
-            case SKELETON, STRAY -> "skeleton";
-            case CREEPER -> "creeper";
-            case SPIDER, CAVE_SPIDER -> "spider";
-            case ENDERMAN -> "enderman";
-            case WARDEN -> "warden";
-            case IRON_GOLEM -> "iron_golem";
-            case PIGLIN, PIGLIN_BRUTE, ZOMBIFIED_PIGLIN -> "piglin";
-            case HOGLIN -> "hoglin";
-            case ZOGLIN -> "zoglin";
-            case GUARDIAN, ELDER_GUARDIAN -> "guardian";
-            case BEE -> "bee";
-            case WOLF -> "wolf";
-            case GOAT -> "goat";
-            case BREEZE -> "breeze";
-            case BOGGED -> "bogged";
-            case ENDER_DRAGON -> "dragon";
-            case WITHER -> "wither_boss";
-            case ARROW, SPECTRAL_ARROW -> "arrow";
-            case TRIDENT -> "trident";
-            case FIREBALL, SMALL_FIREBALL, DRAGON_FIREBALL -> "fireball";
-            case WIND_CHARGE, BREEZE_WIND_CHARGE -> "wind_charge";
-            case ENDER_PEARL -> "ender_pearl";
-            case TNT, TNT_MINECART -> "tnt";
-            case END_CRYSTAL -> "crystal";
-            case MINECART, CHEST_MINECART, COMMAND_BLOCK_MINECART, FURNACE_MINECART, HOPPER_MINECART, SPAWNER_MINECART -> "minecart";
-            case BOAT, CHEST_BOAT -> "boat_crash";
+            case EntityType.ZOMBIE, EntityType.HUSK, EntityType.DROWNED, EntityType.ZOMBIE_VILLAGER -> "zombie";
+            case EntityType.SKELETON, EntityType.STRAY -> "skeleton";
+            case EntityType.CREEPER -> "creeper";
+            case EntityType.SPIDER, EntityType.CAVE_SPIDER -> "spider";
+            case EntityType.ENDERMAN -> "enderman";
+            case EntityType.WARDEN -> "warden";
+            case EntityType.IRON_GOLEM -> "iron_golem";
+            case EntityType.PIGLIN, EntityType.PIGLIN_BRUTE, EntityType.ZOMBIFIED_PIGLIN -> "piglin";
+            case EntityType.HOGLIN -> "hoglin";
+            case EntityType.ZOGLIN -> "zoglin";
+            case EntityType.GUARDIAN, EntityType.ELDER_GUARDIAN -> "guardian";
+            case EntityType.BEE -> "bee";
+            case EntityType.WOLF -> "wolf";
+            case EntityType.GOAT -> "goat";
+            case EntityType.BREEZE -> "breeze";
+            case EntityType.BOGGED -> "bogged";
+            case EntityType.ENDER_DRAGON -> "dragon";
+            case EntityType.WITHER -> "wither_boss";
+            case EntityType.ARROW, EntityType.SPECTRAL_ARROW -> "arrow";
+            case EntityType.TRIDENT -> "trident";
+            case EntityType.FIREBALL, EntityType.SMALL_FIREBALL, EntityType.DRAGON_FIREBALL -> "fireball";
+            case EntityType.WIND_CHARGE, EntityType.BREEZE_WIND_CHARGE -> "wind_charge";
+            case EntityType.ENDER_PEARL -> "ender_pearl";
+            case EntityType.TNT, EntityType.TNT_MINECART -> "tnt";
+            case EntityType.END_CRYSTAL -> "crystal";
+            case EntityType.MINECART, EntityType.CHEST_MINECART, EntityType.COMMAND_BLOCK_MINECART, EntityType.FURNACE_MINECART, EntityType.HOPPER_MINECART, EntityType.SPAWNER_MINECART -> "minecart";
+            case EntityType.BOAT, EntityType.CHEST_BOAT -> "boat_crash";
             default -> null;
         };
     }
 
     private String categoryForDamageType(DamageType type) {
+        String name;
         if (type == null) {
             return null;
         }
-
         NamespacedKey key = type.getKey();
-        String name = key.getKey();
-        return switch (name) {
+        return switch (name = key.getKey()) {
             case "bad_respawn_point" -> "bad_respawn_point";
             case "lava" -> "lava";
             case "in_fire", "on_fire" -> "fire";
@@ -229,61 +207,53 @@ public class DeathMessageManager {
 
     private String categoryForCause(EntityDamageEvent.DamageCause cause) {
         return switch (cause) {
-            case CONTACT -> "contact";
-            case ENTITY_ATTACK, ENTITY_SWEEP_ATTACK -> "mob_kill";
-            case PROJECTILE -> "projectile";
-            case SUFFOCATION -> "suffocation";
-            case FALL -> "fall";
-            case FIRE -> "fire";
-            case FIRE_TICK -> "fire";
-            case MELTING, FREEZE -> "freeze";
-            case LAVA -> "lava";
-            case DROWNING -> "drowning";
-            case BLOCK_EXPLOSION, ENTITY_EXPLOSION -> "explosion";
-            case VOID -> "void";
-            case LIGHTNING -> "lightning";
-            case SUICIDE -> "suicide";
-            case STARVATION -> "starvation";
-            case POISON -> "poison";
-            case MAGIC -> "magic";
-            case WITHER -> "wither";
-            case FALLING_BLOCK -> "falling_block";
-            case THORNS -> "thorns";
-            case DRAGON_BREATH -> "dragon";
-            case CUSTOM -> "custom";
-            case FLY_INTO_WALL -> "fly_into_wall";
-            case HOT_FLOOR -> "hot_floor";
-            case CRAMMING -> "cramming";
-            case DRYOUT -> "drowning";
-            case SONIC_BOOM -> "sonic_boom";
-            case WORLD_BORDER -> "world_border";
+            case EntityDamageEvent.DamageCause.CONTACT -> "contact";
+            case EntityDamageEvent.DamageCause.ENTITY_ATTACK, EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK -> "mob_kill";
+            case EntityDamageEvent.DamageCause.PROJECTILE -> "projectile";
+            case EntityDamageEvent.DamageCause.SUFFOCATION -> "suffocation";
+            case EntityDamageEvent.DamageCause.FALL -> "fall";
+            case EntityDamageEvent.DamageCause.FIRE -> "fire";
+            case EntityDamageEvent.DamageCause.FIRE_TICK -> "fire";
+            case EntityDamageEvent.DamageCause.MELTING, EntityDamageEvent.DamageCause.FREEZE -> "freeze";
+            case EntityDamageEvent.DamageCause.LAVA -> "lava";
+            case EntityDamageEvent.DamageCause.DROWNING -> "drowning";
+            case EntityDamageEvent.DamageCause.BLOCK_EXPLOSION, EntityDamageEvent.DamageCause.ENTITY_EXPLOSION -> "explosion";
+            case EntityDamageEvent.DamageCause.VOID -> "void";
+            case EntityDamageEvent.DamageCause.LIGHTNING -> "lightning";
+            case EntityDamageEvent.DamageCause.SUICIDE -> "suicide";
+            case EntityDamageEvent.DamageCause.STARVATION -> "starvation";
+            case EntityDamageEvent.DamageCause.POISON -> "poison";
+            case EntityDamageEvent.DamageCause.MAGIC -> "magic";
+            case EntityDamageEvent.DamageCause.WITHER -> "wither";
+            case EntityDamageEvent.DamageCause.FALLING_BLOCK -> "falling_block";
+            case EntityDamageEvent.DamageCause.THORNS -> "thorns";
+            case EntityDamageEvent.DamageCause.DRAGON_BREATH -> "dragon";
+            case EntityDamageEvent.DamageCause.CUSTOM -> "custom";
+            case EntityDamageEvent.DamageCause.FLY_INTO_WALL -> "fly_into_wall";
+            case EntityDamageEvent.DamageCause.HOT_FLOOR -> "hot_floor";
+            case EntityDamageEvent.DamageCause.CRAMMING -> "cramming";
+            case EntityDamageEvent.DamageCause.DRYOUT -> "drowning";
+            case EntityDamageEvent.DamageCause.SONIC_BOOM -> "sonic_boom";
+            case EntityDamageEvent.DamageCause.WORLD_BORDER -> "world_border";
             default -> "generic";
         };
     }
 
     private String randomTemplate(String category) {
-        List<String> simpleList = simpleMessages.get(category.toLowerCase(Locale.ROOT));
-        if (simpleList != null && !simpleList.isEmpty()) {
-            return simpleList.get(ThreadLocalRandom.current().nextInt(simpleList.size()));
+        List<String> list = this.messages.get(category.toLowerCase(Locale.ROOT));
+        if (list != null && !list.isEmpty()) {
+            return list.get(ThreadLocalRandom.current().nextInt(list.size()));
         }
-
-        List<String> list = messages.get(category.toLowerCase(Locale.ROOT));
-        if (list == null || list.isEmpty()) {
+        List<String> simpleList = this.simpleMessages.get(category.toLowerCase(Locale.ROOT));
+        if (simpleList == null || simpleList.isEmpty()) {
             return null;
         }
-        return list.get(ThreadLocalRandom.current().nextInt(list.size()));
+        return simpleList.get(ThreadLocalRandom.current().nextInt(simpleList.size()));
     }
 
     private String applyPlaceholders(String template, Player victim, Player killer) {
-        String weapon = killer != null ? weaponName(killer.getInventory().getItemInMainHand()) : "";
-        return template
-                .replace("%victim%", victim.getName())
-                .replace("%killer%", killer != null ? killer.getName() : "the server")
-                .replace("%weapon%", weapon)
-                .replace("%world%", victim.getWorld().getName())
-                .replace("%x%", String.valueOf(victim.getLocation().getBlockX()))
-                .replace("%y%", String.valueOf(victim.getLocation().getBlockY()))
-                .replace("%z%", String.valueOf(victim.getLocation().getBlockZ()));
+        String weapon = killer != null ? this.weaponName(killer.getInventory().getItemInMainHand()) : "";
+        return template.replace("%victim%", victim.getName()).replace("%killer%", killer != null ? killer.getName() : "the server").replace("%weapon%", weapon).replace("%world%", victim.getWorld().getName()).replace("%x%", String.valueOf(victim.getLocation().getBlockX())).replace("%y%", String.valueOf(victim.getLocation().getBlockY())).replace("%z%", String.valueOf(victim.getLocation().getBlockZ()));
     }
 
     private String fallbackMessage(Player victim, Player killer, boolean selfKillCommand) {
@@ -305,7 +275,7 @@ public class DeathMessageManager {
     }
 
     private String weaponName(ItemStack item) {
-        if (hasCustomName(item)) {
+        if (this.hasCustomName(item)) {
             return item.getItemMeta().getDisplayName();
         }
         if (item == null || item.getType() == Material.AIR) {
@@ -318,25 +288,23 @@ public class DeathMessageManager {
         if (type == null) {
             return null;
         }
-
         return switch (type) {
-            case END_CRYSTAL -> "end crystal";
-            case TNT, TNT_MINECART -> "TNT";
-            case FIREBALL, SMALL_FIREBALL, DRAGON_FIREBALL -> "fireball";
-            case ARROW, SPECTRAL_ARROW -> "arrow";
-            case TRIDENT -> "trident";
-            case WIND_CHARGE, BREEZE_WIND_CHARGE -> "wind charge";
+            case EntityType.END_CRYSTAL -> "end crystal";
+            case EntityType.TNT, EntityType.TNT_MINECART -> "TNT";
+            case EntityType.FIREBALL, EntityType.SMALL_FIREBALL, EntityType.DRAGON_FIREBALL -> "fireball";
+            case EntityType.ARROW, EntityType.SPECTRAL_ARROW -> "arrow";
+            case EntityType.TRIDENT -> "trident";
+            case EntityType.WIND_CHARGE, EntityType.BREEZE_WIND_CHARGE -> "wind charge";
             default -> null;
         };
     }
 
     private String simpleNameForDamageType(DamageType type) {
+        String name;
         if (type == null) {
             return null;
         }
-
-        String name = type.getKey().getKey();
-        return switch (name) {
+        return switch (name = type.getKey().getKey()) {
             case "bad_respawn_point" -> "bed or respawn anchor";
             case "lava" -> "lava";
             case "in_fire", "on_fire" -> "fire";
@@ -349,76 +317,22 @@ public class DeathMessageManager {
 
     private String simpleNameForCause(EntityDamageEvent.DamageCause cause) {
         return switch (cause) {
-            case LAVA -> "lava";
-            case FIRE, FIRE_TICK -> "fire";
-            case HOT_FLOOR -> "magma block";
-            case BLOCK_EXPLOSION, ENTITY_EXPLOSION -> "explosion";
-            case PROJECTILE -> "projectile";
+            case EntityDamageEvent.DamageCause.LAVA -> "lava";
+            case EntityDamageEvent.DamageCause.FIRE, EntityDamageEvent.DamageCause.FIRE_TICK -> "fire";
+            case EntityDamageEvent.DamageCause.HOT_FLOOR -> "magma block";
+            case EntityDamageEvent.DamageCause.BLOCK_EXPLOSION, EntityDamageEvent.DamageCause.ENTITY_EXPLOSION -> "explosion";
+            case EntityDamageEvent.DamageCause.PROJECTILE -> "projectile";
             default -> null;
         };
     }
 
     private Map<String, List<String>> createSimpleMessages() {
-        Map<String, List<String>> map = new HashMap<>();
-        map.put("generic", List.of(
-                "%victim% died like a newfriend",
-                "%victim% got sent back to spawn",
-                "%victim% lost the survival test",
-                "%victim% got removed from the map",
-                "%victim% became loot on the floor",
-                "%victim% got skill checked",
-                "%victim% ran out of luck",
-                "%victim% got clowned by the server",
-                "%victim% got put in the dirt",
-                "%victim% folded under pressure"
-        ));
-        map.put("unknown", List.of(
-                "%victim% died to weird server stuff",
-                "%victim% got killed by minecraft nonsense",
-                "%victim% got deleted by something stupid",
-                "%victim% died and nobody knows why"
-        ));
-        map.put("player_kill", List.of(
-                "%victim% got dropped by %killer%",
-                "%victim% got packed by %killer%",
-                "%killer% sent %victim% back to spawn",
-                "%victim% got folded by %killer%",
-                "%killer% smoked %victim%",
-                "%killer% ran through %victim%",
-                "%victim% got farmed by %killer%",
-                "%victim% got owned by %killer%",
-                "%killer% turned %victim% into loot",
-                "%victim% got rolled by %killer%",
-                "%killer% made %victim% look free",
-                "%victim% got put down by %killer%",
-                "%killer% packed %victim% up",
-                "%victim% lost the 1v1 to %killer%",
-                "%killer% clipped %victim%",
-                "%victim% got sent to spawn by %killer%",
-                "%killer% ended %victim%'s run",
-                "%victim% got cleaned by %killer%",
-                "%killer% made %victim% drop"
-        ));
-        map.put("player_using_item", List.of(
-                "%victim% got dropped by %killer%",
-                "%victim% got packed by %killer%",
-                "%killer% folded %victim%",
-                "%killer% smoked %victim%",
-                "%victim% got rolled by %killer%",
-                "%killer% made %victim% drop",
-                "%victim% got deleted by %killer%",
-                "%killer% sent %victim% back to spawn",
-                "%victim% got farmed by %killer%",
-                "%killer% turned %victim% into loot",
-                "%victim% got clipped by %killer%",
-                "%killer% packed %victim% up"
-        ));
-        map.put("mob_kill", List.of(
-                "%victim% lost to a mob",
-                "%victim% got farmed by PvE",
-                "%victim% got packed by server AI",
-                "%victim% lost to something with no brain"
-        ));
+        HashMap<String, List<String>> map = new HashMap<String, List<String>>();
+        map.put("generic", List.of("%victim% died like a newfriend", "%victim% got sent back to spawn", "%victim% lost the survival test", "%victim% got removed from the map", "%victim% became loot on the floor", "%victim% got skill checked", "%victim% ran out of luck", "%victim% got clowned by the server", "%victim% got put in the dirt", "%victim% folded under pressure"));
+        map.put("unknown", List.of("%victim% died to weird server stuff", "%victim% got killed by minecraft nonsense", "%victim% got deleted by something stupid", "%victim% died and nobody knows why"));
+        map.put("player_kill", List.of("%victim% got dropped by %killer%", "%victim% got packed by %killer%", "%killer% sent %victim% back to spawn", "%victim% got folded by %killer%", "%killer% smoked %victim%", "%killer% ran through %victim%", "%victim% got farmed by %killer%", "%victim% got owned by %killer%", "%killer% turned %victim% into loot", "%victim% got rolled by %killer%", "%killer% made %victim% look free", "%victim% got put down by %killer%", "%killer% packed %victim% up", "%victim% lost the 1v1 to %killer%", "%killer% clipped %victim%", "%victim% got sent to spawn by %killer%", "%killer% ended %victim%'s run", "%victim% got cleaned by %killer%", "%killer% made %victim% drop"));
+        map.put("player_using_item", List.of("%victim% got dropped by %killer%", "%victim% got packed by %killer%", "%killer% folded %victim%", "%killer% smoked %victim%", "%victim% got rolled by %killer%", "%killer% made %victim% drop", "%victim% got deleted by %killer%", "%killer% sent %victim% back to spawn", "%victim% got farmed by %killer%", "%killer% turned %victim% into loot", "%victim% got clipped by %killer%", "%killer% packed %victim% up"));
+        map.put("mob_kill", List.of("%victim% lost to a mob", "%victim% got farmed by PvE", "%victim% got packed by server AI", "%victim% lost to something with no brain"));
         map.put("zombie", List.of("%victim% got eaten by a zombie", "%victim% lost to a walking corpse", "%victim% got chewed up by a zombie"));
         map.put("skeleton", List.of("%victim% got sniped by a skeleton", "%victim% got bowed by bones", "%victim% lost to a dead archer"));
         map.put("creeper", List.of("%victim% got creepered", "%victim% got cratered by a creeper", "%victim% got blown out by a green rat"));
@@ -442,15 +356,7 @@ public class DeathMessageManager {
         map.put("wind_charge", List.of("%victim% got wind-charged", "%victim% got blasted by air", "%victim% got knocked into shame"));
         map.put("explosion", List.of("%victim% got blown up", "%victim% got sent by boom", "%victim% became a crater stain"));
         map.put("tnt", List.of("%victim% got TNT'd", "%victim% got cannon checked", "%victim% became blast loot", "%victim% got redstone packed"));
-        map.put("crystal", List.of(
-                "%victim% got crystalled",
-                "%victim% got popped by crystal",
-                "%victim% got crystal checked",
-                "%victim% got sent by shiny glass",
-                "%victim% forgot the totem",
-                "%victim% got 2b2t'd by a crystal",
-                "%victim% became armor damage"
-        ));
+        map.put("crystal", List.of("%victim% got crystalled", "%victim% got popped by crystal", "%victim% got crystal checked", "%victim% got sent by shiny glass", "%victim% forgot the totem", "%victim% got 2b2t'd by a crystal", "%victim% became armor damage"));
         map.put("bad_respawn_point", List.of("%victim% got bed-bombed", "%victim% got anchor-bombed", "%victim% clicked the wrong respawn block"));
         map.put("bed_explosion", List.of("%victim% got bed-bombed", "%victim% slept too hard", "%victim% got killed by a mattress"));
         map.put("respawn_anchor", List.of("%victim% got anchor-bombed", "%victim% got packed by purple boom", "%victim% clicked glowstone death"));
@@ -466,14 +372,7 @@ public class DeathMessageManager {
         map.put("contact", List.of("%victim% touched the wrong block", "%victim% got poked by the map", "%victim% lost to a block"));
         map.put("cactus", List.of("%victim% hugged a cactus", "%victim% got cactus checked", "%victim% lost to a green spike"));
         map.put("berry_bush", List.of("%victim% lost to berries", "%victim% got bush trapped", "%victim% got killed by breakfast"));
-        map.put("fall", List.of(
-                "%victim% failed the water bucket",
-                "%victim% forgot gravity exists",
-                "%victim% hit the floor too hard",
-                "%victim% missed the clutch",
-                "%victim% took the fast way down",
-                "%victim% got floor checked"
-        ));
+        map.put("fall", List.of("%victim% failed the water bucket", "%victim% forgot gravity exists", "%victim% hit the floor too hard", "%victim% missed the clutch", "%victim% took the fast way down", "%victim% got floor checked"));
         map.put("void", List.of("%victim% fell into the void", "%victim% got eaten by nothing", "%victim% left the map"));
         map.put("world_border", List.of("%victim% got pushed by the border", "%victim% tried to leave 2b2t", "%victim% lost to the wall"));
         map.put("falling_block", List.of("%victim% got crushed by a block", "%victim% forgot to look up", "%victim% got flattened"));

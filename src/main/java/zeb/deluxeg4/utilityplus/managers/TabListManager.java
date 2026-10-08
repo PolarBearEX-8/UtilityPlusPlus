@@ -1,15 +1,6 @@
 package zeb.deluxeg4.utilityplus.managers;
 
-import zeb.deluxeg4.utilityplus.UtilityPlus;
-import zeb.deluxeg4.utilityplus.util.Messages;
-import zeb.deluxeg4.utilityplus.util.PaperFoliaTasks;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
-
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -18,228 +9,196 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import zeb.deluxeg4.utilityplus.UtilityPlus;
+import zeb.deluxeg4.utilityplus.util.Messages;
+import zeb.deluxeg4.utilityplus.util.PaperFoliaTasks;
 
 public class TabListManager {
-
-    private static final double DEFAULT_TPS = 20.0D;
+    private static final double DEFAULT_TPS = 20.0;
     private static final int MIN_UPDATE_INTERVAL_SECONDS = 1;
-
     private final UtilityPlus plugin;
-    private final Map<UUID, String[]> lastSent = new ConcurrentHashMap<>();
-
+    private final Map<UUID, String[]> lastSent = new ConcurrentHashMap<UUID, String[]>();
     private ScheduledTask updateTask;
     private boolean enabled;
     private long updateIntervalTicks;
     private List<String> headerLines;
     private List<String> footerLines;
-    private double lastKnownTps = DEFAULT_TPS;
-    private Method worldTpsMethod;
-    private boolean worldTpsMethodChecked;
+    private volatile double lastKnownTps = 20.0;
+    private volatile Method regionTpsMethod;
+    private volatile boolean regionTpsMethodChecked;
 
-    public TabListManager(final UtilityPlus plugin) {
+    public TabListManager(UtilityPlus plugin) {
         this.plugin = plugin;
-        reload();
+        this.reload();
     }
 
-    /** Reloads tab-list settings and restarts the update task. */
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
     public void reload() {
-        enabled = plugin.getConfig().getBoolean("tab-list.enabled", true);
-        final int updateIntervalSeconds = Math.max(
-                MIN_UPDATE_INTERVAL_SECONDS,
-                plugin.getConfig().getInt("tab-list.update-interval", 5)
-        );
-
-        updateIntervalTicks = updateIntervalSeconds * 20L;
-        headerLines = plugin.getConfig().getStringList("tab-list.header");
-        footerLines = plugin.getConfig().getStringList("tab-list.footer");
-        worldTpsMethod = null;
-        worldTpsMethodChecked = false;
-        lastSent.clear();
-
-        stop();
-        if (enabled) {
-            start();
-            updateAll();
+        this.enabled = this.plugin.getConfig().getBoolean("tab-list.enabled", true);
+        int updateIntervalSeconds = Math.max(1, this.plugin.getConfig().getInt("tab-list.update-interval", 5));
+        this.updateIntervalTicks = (long)updateIntervalSeconds * 20L;
+        this.headerLines = this.plugin.getConfig().getStringList("tab-list.header");
+        this.footerLines = this.plugin.getConfig().getStringList("tab-list.footer");
+        TabListManager tabListManager = this;
+        synchronized (tabListManager) {
+            this.regionTpsMethod = null;
+            this.regionTpsMethodChecked = false;
+        }
+        this.lastSent.clear();
+        this.stop();
+        if (this.enabled) {
+            this.start();
+            this.updateAll();
         } else {
-            clearAll();
+            this.clearAll();
         }
     }
 
-    /** Stops the tab-list update task. */
     public void stop() {
-        if (updateTask != null) {
-            updateTask.cancel();
-            updateTask = null;
+        if (this.updateTask != null) {
+            this.updateTask.cancel();
+            this.updateTask = null;
         }
     }
 
-    /** Updates one player's tab-list header and footer. */
-    public void update(final Player player) {
+    public void update(Player player) {
         if (!player.isOnline()) {
-            onPlayerQuit(player);
+            this.onPlayerQuit(player);
             return;
         }
-
-        if (!enabled) {
-            clear(player);
+        if (!this.enabled) {
+            this.clear(player);
             return;
         }
-
-        updatePlayerTabList(player, getAverageWorldTps(), formatUptime());
+        this.updatePlayerTabList(player, this.getPlayerRegionTps(player), this.formatUptime());
     }
 
-    /** Clears cached tab-list state for a player who left. */
-    public void onPlayerQuit(final Player player) {
-        lastSent.remove(player.getUniqueId());
+    public void onPlayerQuit(Player player) {
+        this.lastSent.remove(player.getUniqueId());
     }
 
     private void start() {
-        updateTask = PaperFoliaTasks.runGlobalTimer(
-                plugin,
-                task -> updateAll(),
-                updateIntervalTicks,
-                updateIntervalTicks
-        );
+        this.updateTask = PaperFoliaTasks.runGlobalTimer((Plugin)this.plugin, task -> this.updateAll(), this.updateIntervalTicks, this.updateIntervalTicks);
     }
 
     private void updateAll() {
-        final double tps = getAverageWorldTps();
-        final String uptime = formatUptime();
-        final String onlineCount = String.valueOf(Bukkit.getOnlinePlayers().size());
-
-        for (final Player player : Bukkit.getOnlinePlayers()) {
-            PaperFoliaTasks.runForPlayer(plugin, player, () -> updateIfOnline(player, tps, uptime, onlineCount));
+        String uptime = this.formatUptime();
+        String onlineCount = String.valueOf(Bukkit.getOnlinePlayers().size());
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            PaperFoliaTasks.runForPlayer((Plugin)this.plugin, player, () -> this.updateIfOnline(player, uptime, onlineCount));
         }
     }
 
-    private void updateIfOnline(
-            final Player player,
-            final double tps,
-            final String uptime,
-            final String onlineCount
-    ) {
+    private void updateIfOnline(Player player, String uptime, String onlineCount) {
         if (player.isOnline()) {
-            updatePlayerTabList(player, tps, uptime, onlineCount);
+            this.updatePlayerTabList(player, this.getPlayerRegionTps(player), uptime, onlineCount);
             return;
         }
-        onPlayerQuit(player);
+        this.onPlayerQuit(player);
     }
 
-    private void updatePlayerTabList(final Player player, final double tps, final String uptime) {
-        updatePlayerTabList(player, tps, uptime, String.valueOf(Bukkit.getOnlinePlayers().size()));
+    private void updatePlayerTabList(Player player, double tps, String uptime) {
+        this.updatePlayerTabList(player, tps, uptime, String.valueOf(Bukkit.getOnlinePlayers().size()));
     }
 
-    private void updatePlayerTabList(
-            final Player player,
-            final double tps,
-            final String uptime,
-            final String onlineCount
-    ) {
-        final String header = formatLines(headerLines, player, tps, uptime, onlineCount);
-        final String footer = formatLines(footerLines, player, tps, uptime, onlineCount);
-        final String[] previous = lastSent.get(player.getUniqueId());
-
+    private void updatePlayerTabList(Player player, double tps, String uptime, String onlineCount) {
+        String header = this.formatLines(this.headerLines, player, tps, uptime, onlineCount);
+        String footer = this.formatLines(this.footerLines, player, tps, uptime, onlineCount);
+        String[] previous = this.lastSent.get(player.getUniqueId());
         if (previous != null && previous[0].equals(header) && previous[1].equals(footer)) {
             return;
         }
-
         player.sendPlayerListHeaderAndFooter(Messages.legacy(header), Messages.legacy(footer));
-        lastSent.put(player.getUniqueId(), new String[] {header, footer});
+        this.lastSent.put(player.getUniqueId(), new String[]{header, footer});
     }
 
     private void clearAll() {
-        for (final Player player : Bukkit.getOnlinePlayers()) {
-            PaperFoliaTasks.runForPlayer(plugin, player, () -> clear(player));
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            PaperFoliaTasks.runForPlayer((Plugin)this.plugin, player, () -> this.clear(player));
         }
     }
 
-    private void clear(final Player player) {
-        player.sendPlayerListHeaderAndFooter(Component.empty(), Component.empty());
-        lastSent.remove(player.getUniqueId());
+    private void clear(Player player) {
+        player.sendPlayerListHeaderAndFooter((Component)Component.empty(), (Component)Component.empty());
+        this.lastSent.remove(player.getUniqueId());
     }
 
-    private String formatLines(
-            final List<String> lines,
-            final Player player,
-            final double tps,
-            final String uptime,
-            final String onlineCount
-    ) {
-        return String.join("\n", lines)
-                .replace("%server_tps_1_colored%", formatTps(tps))
-                .replace("%tps%", String.format(Locale.ROOT, "%.2f", Math.max(0.0D, Math.min(20.0D, tps))))
-                .replace("%server_online%", onlineCount)
-                .replace("%player_ping%", String.valueOf(player.getPing()))
-                .replace("%server_uptime%", uptime);
+    private String formatLines(List<String> lines, Player player, double tps, String uptime, String onlineCount) {
+        return String.join((CharSequence)"\n", lines).replace("%server_tps%", this.formatTps(tps)).replace("%tps%", String.format(Locale.ROOT, "%.2f", Math.max(0.0, Math.min(20.0, tps)))).replace("%server_online%", onlineCount).replace("%player_ping%", String.valueOf(player.getPing())).replace("%server_uptime%", uptime);
     }
 
-    private double getAverageWorldTps() {
-        double total = 0.0D;
-        int count = 0;
-
-        for (final World world : Bukkit.getWorlds()) {
-            final Double tps = getWorldTps(world);
-            if (tps != null) {
-                total += tps;
-                count++;
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    private double getPlayerRegionTps(Player player) {
+        if (!this.regionTpsMethodChecked) {
+            TabListManager tabListManager = this;
+            synchronized (tabListManager) {
+                if (!this.regionTpsMethodChecked) {
+                    try {
+                        this.regionTpsMethod = Bukkit.getServer().getClass().getMethod("getRegionTPS", Location.class);
+                    }
+                    catch (NoSuchMethodException ignored) {
+                        try {
+                            this.regionTpsMethod = Bukkit.getServer().getClass().getMethod("getTPS", Location.class);
+                        }
+                        catch (NoSuchMethodException ignoredFallback) {
+                            this.regionTpsMethod = null;
+                        }
+                    }
+                    this.regionTpsMethodChecked = true;
+                }
             }
         }
-
-        if (count > 0) {
-            lastKnownTps = total / count;
-            return lastKnownTps;
-        }
-        return getServerTpsOrFallback();
-    }
-
-    private Double getWorldTps(final World world) {
-        if (!worldTpsMethodChecked) {
-            worldTpsMethodChecked = true;
+        if (this.regionTpsMethod != null) {
             try {
-                worldTpsMethod = Bukkit.getServer().getClass().getMethod("getTPS", Location.class);
-            } catch (final NoSuchMethodException ignored) {
-                worldTpsMethod = null;
+                Location location = player.getLocation();
+                double[] tps = (double[])this.regionTpsMethod.invoke((Object)Bukkit.getServer(), location);
+                if (tps != null && tps.length > 0) {
+                    this.lastKnownTps = tps[0];
+                    return this.lastKnownTps;
+                }
+            }
+            catch (ReflectiveOperationException | RuntimeException exception) {
+                // empty catch block
             }
         }
-
-        if (worldTpsMethod == null) {
-            return null;
-        }
-
-        try {
-            final Location spawnLocation = world.getSpawnLocation();
-            final double[] tps = (double[]) worldTpsMethod.invoke(Bukkit.getServer(), spawnLocation);
-            if (tps != null && tps.length > 0) {
-                return tps[0];
-            }
-        } catch (final ReflectiveOperationException | RuntimeException ignored) {
-        }
-        return null;
+        return this.getServerTpsOrFallback();
     }
 
     private double getServerTpsOrFallback() {
         try {
-            final double[] tps = Bukkit.getTPS();
+            double[] tps = Bukkit.getTPS();
             if (tps != null && tps.length > 0) {
-                lastKnownTps = tps[0];
+                this.lastKnownTps = tps[0];
             }
-        } catch (final UnsupportedOperationException ignored) {
-        } catch (final RuntimeException ignored) {
         }
-        return lastKnownTps;
+        catch (UnsupportedOperationException unsupportedOperationException) {
+        }
+        catch (RuntimeException runtimeException) {
+            // empty catch block
+        }
+        return this.lastKnownTps;
     }
 
-    private String formatTps(final double tps) {
-        final String color = tps > 18.0D ? "&a" : tps > 16.0D ? "&e" : "&c";
-        return color + String.format(Locale.US, "%.2f", Math.min(tps, DEFAULT_TPS));
+    private String formatTps(double tps) {
+        String color = tps < 12.0 ? "&c" : "";
+        return color + String.format(Locale.US, "%.2f", Math.min(tps, 20.0));
     }
 
     private String formatUptime() {
-        final long totalSeconds = TimeUnit.MILLISECONDS.toSeconds(ManagementFactory.getRuntimeMXBean().getUptime());
-        final long days = totalSeconds / 86_400L;
-        final long hours = (totalSeconds % 86_400L) / 3_600L;
-        final long minutes = (totalSeconds % 3_600L) / 60L;
-        final long seconds = totalSeconds % 60L;
+        long totalSeconds = TimeUnit.MILLISECONDS.toSeconds(ManagementFactory.getRuntimeMXBean().getUptime());
+        long days = totalSeconds / 86400L;
+        long hours = totalSeconds % 86400L / 3600L;
+        long minutes = totalSeconds % 3600L / 60L;
+        long seconds = totalSeconds % 60L;
         return days + "d " + hours + "h " + minutes + "m " + seconds + "s";
     }
 }

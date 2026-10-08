@@ -1,241 +1,232 @@
 package zeb.deluxeg4.utilityplus.managers;
 
-import zeb.deluxeg4.utilityplus.UtilityPlus;
-import zeb.deluxeg4.utilityplus.util.PaperFoliaTasks;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.Plugin;
+import zeb.deluxeg4.utilityplus.UtilityPlus;
+import zeb.deluxeg4.utilityplus.util.PaperFoliaTasks;
 
 public class ChatManager {
-
     private final UtilityPlus plugin;
     private File dataFile;
     private FileConfiguration dataConfig;
     private ScheduledTask pendingSaveTask;
-
     private final Set<UUID> globalMuted = ConcurrentHashMap.newKeySet();
     private final Set<UUID> pmMuted = ConcurrentHashMap.newKeySet();
     private final Set<UUID> deathMessagesMuted = ConcurrentHashMap.newKeySet();
     private final Set<UUID> hardDeathMessagesMuted = ConcurrentHashMap.newKeySet();
-
-    private final Map<UUID, UUID> lastPmSender = new ConcurrentHashMap<>();
-    private final Map<UUID, UUID> lastPmTarget = new ConcurrentHashMap<>();
-    private final Map<UUID, Set<String>> ignoredPlayers = new ConcurrentHashMap<>();
-    private final Map<UUID, Set<String>> hardIgnoredPlayers = new ConcurrentHashMap<>();
-    private final Map<UUID, Set<String>> ignoredDeathMessages = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> lastPmSender = new ConcurrentHashMap<UUID, UUID>();
+    private final Map<UUID, UUID> lastPmTarget = new ConcurrentHashMap<UUID, UUID>();
+    private final Map<UUID, Set<String>> ignoredPlayers = new ConcurrentHashMap<UUID, Set<String>>();
+    private final Map<UUID, Set<String>> hardIgnoredPlayers = new ConcurrentHashMap<UUID, Set<String>>();
+    private final Map<UUID, Set<String>> ignoredDeathMessages = new ConcurrentHashMap<UUID, Set<String>>();
 
     public ChatManager(UtilityPlus plugin) {
         this.plugin = plugin;
-        loadData();
+        this.loadData();
     }
 
     public boolean isGlobalMuted(UUID uuid) {
-        return globalMuted.contains(uuid);
+        return this.globalMuted.contains(uuid);
     }
 
     public void muteGlobal(UUID uuid) {
-        globalMuted.add(uuid);
+        this.globalMuted.add(uuid);
     }
 
     public void unmuteGlobal(UUID uuid) {
-        globalMuted.remove(uuid);
+        this.globalMuted.remove(uuid);
     }
 
     public boolean isPmMuted(UUID uuid) {
-        return pmMuted.contains(uuid);
+        return this.pmMuted.contains(uuid);
     }
 
     public void mutePm(UUID uuid) {
-        pmMuted.add(uuid);
+        this.pmMuted.add(uuid);
     }
 
     public void unmutePm(UUID uuid) {
-        pmMuted.remove(uuid);
+        this.pmMuted.remove(uuid);
     }
 
     public UUID getLastPmSender(UUID uuid) {
-        return lastPmSender.get(uuid);
+        return this.lastPmSender.get(uuid);
     }
 
     public void setLastPmSender(UUID target, UUID sender) {
-        lastPmSender.put(target, sender);
+        this.lastPmSender.put(target, sender);
     }
 
     public UUID getLastPmTarget(UUID uuid) {
-        return lastPmTarget.get(uuid);
+        return this.lastPmTarget.get(uuid);
     }
 
     public void setLastPmTarget(UUID sender, UUID target) {
-        lastPmTarget.put(sender, target);
+        this.lastPmTarget.put(sender, target);
     }
 
     public boolean toggleGlobalMuted(UUID uuid) {
-        if (globalMuted.contains(uuid)) {
-            globalMuted.remove(uuid);
+        if (this.globalMuted.contains(uuid)) {
+            this.globalMuted.remove(uuid);
             return false;
         }
-        globalMuted.add(uuid);
+        this.globalMuted.add(uuid);
         return true;
     }
 
     public boolean togglePmMuted(UUID uuid) {
-        if (pmMuted.contains(uuid)) {
-            pmMuted.remove(uuid);
+        if (this.pmMuted.contains(uuid)) {
+            this.pmMuted.remove(uuid);
             return false;
         }
-        pmMuted.add(uuid);
+        this.pmMuted.add(uuid);
         return true;
     }
 
     public boolean toggleDeathMessages(UUID uuid) {
-        if (deathMessagesMuted.contains(uuid)) {
-            deathMessagesMuted.remove(uuid);
+        if (this.deathMessagesMuted.contains(uuid)) {
+            this.deathMessagesMuted.remove(uuid);
             return false;
         }
-        deathMessagesMuted.add(uuid);
+        this.deathMessagesMuted.add(uuid);
         return true;
     }
 
     public boolean toggleHardDeathMessages(UUID uuid) {
-        if (hardDeathMessagesMuted.contains(uuid)) {
-            hardDeathMessagesMuted.remove(uuid);
-            saveLater();
+        if (this.hardDeathMessagesMuted.contains(uuid)) {
+            this.hardDeathMessagesMuted.remove(uuid);
+            this.saveLater();
             return false;
         }
-        hardDeathMessagesMuted.add(uuid);
-        saveLater();
+        this.hardDeathMessagesMuted.add(uuid);
+        this.saveLater();
         return true;
     }
 
     public boolean isDeathMessagesMuted(UUID uuid) {
-        return deathMessagesMuted.contains(uuid) || hardDeathMessagesMuted.contains(uuid);
+        return this.deathMessagesMuted.contains(uuid) || this.hardDeathMessagesMuted.contains(uuid);
     }
 
     public boolean toggleIgnore(UUID viewer, String targetName) {
-        return toggleName(ignoredPlayers.computeIfAbsent(viewer, ignored -> ConcurrentHashMap.newKeySet()), targetName);
+        return this.toggleName(this.ignoredPlayers.computeIfAbsent(viewer, ignored -> ConcurrentHashMap.newKeySet()), targetName);
     }
 
     public boolean toggleHardIgnore(UUID viewer, String targetName) {
-        boolean ignored = toggleName(hardIgnoredPlayers.computeIfAbsent(viewer, uuid -> ConcurrentHashMap.newKeySet()), targetName);
-        saveLater();
+        boolean ignored = this.toggleName(this.hardIgnoredPlayers.computeIfAbsent(viewer, uuid -> ConcurrentHashMap.newKeySet()), targetName);
+        this.saveLater();
         return ignored;
     }
 
     public boolean toggleDeathMessageIgnore(UUID viewer, String targetName) {
-        boolean ignored = toggleName(ignoredDeathMessages.computeIfAbsent(viewer, uuid -> ConcurrentHashMap.newKeySet()), targetName);
-        saveLater();
+        boolean ignored = this.toggleName(this.ignoredDeathMessages.computeIfAbsent(viewer, uuid -> ConcurrentHashMap.newKeySet()), targetName);
+        this.saveLater();
         return ignored;
     }
 
     public boolean isIgnoring(UUID viewer, String targetName) {
-        String key = normalize(targetName);
-        return ignoredPlayers.getOrDefault(viewer, Set.of()).contains(key)
-                || hardIgnoredPlayers.getOrDefault(viewer, Set.of()).contains(key);
+        return this.containsName(this.ignoredPlayers.getOrDefault(viewer, Set.of()), targetName) || this.containsName(this.hardIgnoredPlayers.getOrDefault(viewer, Set.of()), targetName);
     }
 
     public boolean isIgnoringDeathMessage(UUID viewer, String targetName) {
-        return ignoredDeathMessages.getOrDefault(viewer, Set.of()).contains(normalize(targetName));
+        return this.containsName(this.ignoredDeathMessages.getOrDefault(viewer, Set.of()), targetName);
     }
 
     public Set<String> getHardIgnoredPlayers(UUID viewer) {
-        return new HashSet<>(hardIgnoredPlayers.getOrDefault(viewer, Set.of()));
+        return new HashSet<String>(this.hardIgnoredPlayers.getOrDefault(viewer, Set.of()));
+    }
+
+    public Set<String> getIgnoredPlayers(UUID viewer) {
+        return new HashSet<String>(this.ignoredPlayers.getOrDefault(viewer, Set.of()));
     }
 
     public void reload() {
-        hardIgnoredPlayers.clear();
-        ignoredDeathMessages.clear();
-        hardDeathMessagesMuted.clear();
-        loadData();
+        this.hardIgnoredPlayers.clear();
+        this.ignoredDeathMessages.clear();
+        this.hardDeathMessagesMuted.clear();
+        this.loadData();
     }
 
     public void saveData() {
-        cancelPendingSave();
-        saveNow();
+        this.cancelPendingSave();
+        this.saveNow();
     }
 
     private synchronized void saveLater() {
-        if (pendingSaveTask != null && !pendingSaveTask.isCancelled()) {
+        if (this.pendingSaveTask != null && !this.pendingSaveTask.isCancelled()) {
             return;
         }
-
-        pendingSaveTask = PaperFoliaTasks.runGlobalDelayed(plugin, task -> {
-            pendingSaveTask = null;
-            saveNow();
-        }, 30L * 20L);
+        this.pendingSaveTask = PaperFoliaTasks.runGlobalDelayed((Plugin)this.plugin, task -> {
+            this.pendingSaveTask = null;
+            this.saveNow();
+        }, 600L);
     }
 
     private synchronized void saveNow() {
-        if (dataConfig == null) {
+        if (this.dataConfig == null) {
             return;
         }
-
-        dataConfig.set("hard-ignore", null);
-        dataConfig.set("death-message-ignore", null);
-        dataConfig.set("hard-death-messages-muted", hardDeathMessagesMuted.stream().map(UUID::toString).toList());
-
-        for (Map.Entry<UUID, Set<String>> entry : hardIgnoredPlayers.entrySet()) {
-            dataConfig.set("hard-ignore." + entry.getKey(), entry.getValue().stream().sorted().toList());
+        this.dataConfig.set("hard-ignore", null);
+        this.dataConfig.set("death-message-ignore", null);
+        this.dataConfig.set("hard-death-messages-muted", this.hardDeathMessagesMuted.stream().map(UUID::toString).toList());
+        for (Map.Entry<UUID, Set<String>> entry : this.hardIgnoredPlayers.entrySet()) {
+            this.dataConfig.set("hard-ignore." + String.valueOf(entry.getKey()), entry.getValue().stream().sorted().toList());
         }
-        for (Map.Entry<UUID, Set<String>> entry : ignoredDeathMessages.entrySet()) {
-            dataConfig.set("death-message-ignore." + entry.getKey(), entry.getValue().stream().sorted().toList());
+        for (Map.Entry<UUID, Set<String>> entry : this.ignoredDeathMessages.entrySet()) {
+            this.dataConfig.set("death-message-ignore." + String.valueOf(entry.getKey()), entry.getValue().stream().sorted().toList());
         }
-
         try {
-            dataConfig.save(dataFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("[ChatManager] Could not save chat.yml!");
+            this.dataConfig.save(this.dataFile);
+        }
+        catch (IOException e) {
+            this.plugin.getLogger().severe("[ChatManager] Could not save chat.yml!");
         }
     }
 
     private synchronized void cancelPendingSave() {
-        if (pendingSaveTask != null && !pendingSaveTask.isCancelled()) {
-            pendingSaveTask.cancel();
+        if (this.pendingSaveTask != null && !this.pendingSaveTask.isCancelled()) {
+            this.pendingSaveTask.cancel();
         }
-        pendingSaveTask = null;
+        this.pendingSaveTask = null;
     }
 
     private void loadData() {
-        dataFile = new File(plugin.getDataFolder(), "chat.yml");
-        if (!dataFile.exists()) {
+        this.dataFile = new File(this.plugin.getDataFolder(), "chat.yml");
+        if (!this.dataFile.exists()) {
             try {
-                plugin.getDataFolder().mkdirs();
-                dataFile.createNewFile();
-            } catch (IOException e) {
-                plugin.getLogger().severe("[ChatManager] Could not create chat.yml!");
+                this.plugin.getDataFolder().mkdirs();
+                this.dataFile.createNewFile();
+            }
+            catch (IOException e) {
+                this.plugin.getLogger().severe("[ChatManager] Could not create chat.yml!");
             }
         }
-        dataConfig = YamlConfiguration.loadConfiguration(dataFile);
-
-        for (String uuidString : dataConfig.getStringList("hard-death-messages-muted")) {
-            parseUuid(uuidString, hardDeathMessagesMuted);
+        this.dataConfig = YamlConfiguration.loadConfiguration((File)this.dataFile);
+        for (String uuidString : this.dataConfig.getStringList("hard-death-messages-muted")) {
+            this.parseUuid(uuidString, this.hardDeathMessagesMuted);
         }
-
-        loadNameMap("hard-ignore", hardIgnoredPlayers);
-        loadNameMap("death-message-ignore", ignoredDeathMessages);
+        this.loadNameMap("hard-ignore", this.hardIgnoredPlayers);
+        this.loadNameMap("death-message-ignore", this.ignoredDeathMessages);
     }
 
     private void loadNameMap(String path, Map<UUID, Set<String>> target) {
-        if (!dataConfig.isConfigurationSection(path)) {
+        if (!this.dataConfig.isConfigurationSection(path)) {
             return;
         }
-
-        for (String uuidString : dataConfig.getConfigurationSection(path).getKeys(false)) {
-            UUID uuid = parseUuid(uuidString, null);
-            if (uuid == null) {
-                continue;
-            }
-            Set<String> names = ConcurrentHashMap.newKeySet();
-            for (String name : dataConfig.getStringList(path + "." + uuidString)) {
-                names.add(normalize(name));
+        for (String uuidString : this.dataConfig.getConfigurationSection(path).getKeys(false)) {
+            UUID uuid = this.parseUuid(uuidString, null);
+            if (uuid == null) continue;
+            ConcurrentHashMap.KeySetView names = ConcurrentHashMap.newKeySet();
+            for (String name : this.dataConfig.getStringList(path + "." + uuidString)) {
+                names.add(name);
             }
             target.put(uuid, names);
         }
@@ -248,22 +239,27 @@ public class ChatManager {
                 target.add(uuid);
             }
             return uuid;
-        } catch (IllegalArgumentException ignored) {
+        }
+        catch (IllegalArgumentException ignored) {
             return null;
         }
     }
 
     private boolean toggleName(Set<String> names, String targetName) {
-        String key = normalize(targetName);
-        if (names.contains(key)) {
-            names.remove(key);
+        for (String existingName : names) {
+            if (!existingName.equalsIgnoreCase(targetName)) continue;
+            names.remove(existingName);
             return false;
         }
-        names.add(key);
+        names.add(targetName);
         return true;
     }
 
-    private String normalize(String name) {
-        return name.toLowerCase(Locale.ROOT);
+    private boolean containsName(Set<String> names, String targetName) {
+        for (String name : names) {
+            if (!name.equalsIgnoreCase(targetName)) continue;
+            return true;
+        }
+        return false;
     }
 }

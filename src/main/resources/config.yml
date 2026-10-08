@@ -9,15 +9,14 @@ spawn:
   tp-spawn-on-death: false
   # Teleport to spawn on respawn ONLY if they have no bed/respawn anchor
   tp-spawn-no-respawn-point: false
-  # Cooldown (seconds) between spawn uses. 0 = disabled. OP bypasses.
+  # Cooldown (seconds) between /spawn uses. 0 = disabled. OP bypasses.
   tp-spawn-cooldown: 30
-  # Warmup (seconds) before teleporting. Player must stand still. 0 = instant.
+  # Warmup (seconds) before teleporting — player must stand still. 0 = instant.
   tp-spawn-warmup: 5
-
 # -----------------------------------------------
 # Random Respawn Settings
 # (When enabled, players respawn at a random location on death)
-# Completely independent from the saved spawn point above.
+# Completely independent from the /setspawn system above.
 # -----------------------------------------------
 random-respawn:
   enabled: true
@@ -74,8 +73,9 @@ bedrock-warning:
     - "&62b2t-th is best played on Java Edition. The Bedrock Edition"
     - "&6experience may not be optimal - 2b2t-th.org/bedrock"
 
-# Shows Bukkit block coordinates in the action bar for Bedrock players whose
-# Floodgate username starts with a dot. The values are whole block coordinates.
+# Enables Bedrock native upper-left coordinate display for Floodgate players.
+# Geyser must be installed on this server. If Geyser runs on a proxy, set
+# show-coordinates: true in the proxy Geyser config instead.
 bedrock-coordinates:
   enabled: true
   # Placeholders: {x}, {y}, {z}
@@ -100,27 +100,29 @@ death-message:
 # -----------------------------------------------
 # Tab List Header/Footer Settings
 # -----------------------------------------------
-# Placeholders: %server_tps_1_colored%, %tps%, %server_online%,
+# Placeholders: %server_tps_1_colored%, %server_online%,
 # %player_ping%, %server_uptime%
 
 tab-list:
   enabled: true
   # How often to refresh dynamic placeholders, in seconds
-  update-interval: 5
+  update-interval: 1
   header:
+    # - ""
+    - "&7&l2BUILDERS&7&l2TOOLS"
+    #- "&6&oThailand"
+    - "&4&oT&f&oh&1&oa&f&oi&4&ol&4&oa&4&ond"
     - ""
-    - "&7&o&l  2BUILDERS      "
-    - "&7&o&l  2TOOLS &6&o- Thailand"
+    - "&6Server updated to 26.3"
     - ""
   footer:
+    # - ""
+    #- "  %server_tps_1_colored% &3tps - %server_online% players online - %player_ping% ping - &3%server_uptime% uptime "
+    - "  &8%server_tps%&8 tps — %server_online% players online — %player_ping% ping "
     - ""
-    - "%server_tps_1_colored% &3tps - %server_online% players - %player_ping% ping - %server_uptime% uptime"
-    - ""
-    - "&7contact: @ dsc.gg/2b2t-th"
-    - "&7discord: dsc.gg/2b2t-th"
-    - "&7website: 2b2t-th.org"
-    - "  &7If you need to contact us or found a bug, please contact us on discord  "
-    - ""
+    #- "&7&odiscord: dsc.gg/2b2t-th"
+    #- "&8&owebsite: 2b2t-th.org"
+    #- ""
 
 # -----------------------------------------------
 # Broadcast Settings
@@ -139,18 +141,47 @@ announcement:
     show-duration: 15
     # Duration to stay hidden (seconds, 300 = 5 minutes)
     hide-duration: 300
-    # Texts to show in the Action Bar. Each entry is shown in sequence.
+    # The text to show in the Action Bar
     text:
       - "&62b2t-th.org"
-      - "&eDiscord: &fdsc.gg/2b2t-th"
-      - "&bอย่าลืมอ่านกฎเซิร์ฟเวอร์ก่อนเล่น"
+      - "&6dsc.gg/2b2t-th"
 
 # -----------------------------------------------
-# Queue Command Settings
+# Command and chat messages
+# Placeholders: {player}, {page}, {pages}
 # -----------------------------------------------
-queue:
-  message:
-    - "&6Queue lengths:"
-    - "&7Regular: &f0"
-    - "&7Priority: &f0"
-    - "&7Online: &f{online}/{max}"
+messages:
+  bad-command: "&4Bad command. Type /help for all commands."
+  player-not-online: "&6This player is not online."
+  ignore:
+    self: "&6You can not ignore yourself."
+    normal-enabled: "&6Now ignoring &3{player}"
+    normal-disabled: "&6No longer ignoring &3{player}."
+    hard-enabled: "&6Permanently ignoring {player}. This is saved in &4/ignorelist."
+    hard-disabled: "&6No longer permanently ignoring &3{player}"
+    death-enabled: "&6You will no longer see this players death messages."
+    death-disabled: "&6You will now see this players death messages."
+  ignore-list:
+    empty: "&6No players ignored."
+    invalid-page-singular: "&cInvalid page argument, there are only {pages} page."
+    invalid-page-plural: "&cInvalid page argument, there are only {pages} pages."
+    title: "&6[ Ignored players &7"
+    previous-active: "&b[<]"
+    previous-inactive: "&7[<]"
+    previous-hover: "&6Click to go to the previous page"
+    page-counter: " &6{page}/{pages} "
+    next-active: "&b[>]"
+    next-inactive: "&7[>]"
+    next-hover: "&6Click to go to the next page"
+    suffix: " &6]"
+    player-row-prefix: "&3{player} &7["
+    hard-label: "&6hard"
+    soft-label: "&6soft"
+    player-row-suffix: "&7]"
+    hard-hover: "&6Click to remove the permanent ignore"
+    soft-hover: "&6Click to remove the soft ignore"
+  player-name:
+    hover: "&6Message &3{player}"
+    suggest-command: "/w {player}"
+
+# -----------------------------------------------
