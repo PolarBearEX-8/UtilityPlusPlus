@@ -5,7 +5,7 @@ api-version: '1.21'
 folia-supported: true
 description: Chat controls, player utilities, server information, and admin tools
 author: CADS
-softdepend: [floodgate, Geyser-Spigot]
+softdepend: [PlaceholderAPI, floodgate, Geyser-Spigot]
 
 commands:
   # --- 2b2t-style chat controls ---

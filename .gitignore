@@ -1,5 +1,6 @@
 .gradle/
 build/
+papi-folia-expansion/build/
 bin/
 run/
 run-folia/

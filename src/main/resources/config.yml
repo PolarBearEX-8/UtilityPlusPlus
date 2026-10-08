@@ -100,8 +100,9 @@ death-message:
 # -----------------------------------------------
 # Tab List Header/Footer Settings
 # -----------------------------------------------
-# Placeholders: %server_tps_1_colored%, %server_online%,
-# %player_ping%, %server_uptime%
+# Built-in placeholders: %server_tps_1_colored%, %server_online%,
+# %player_ping%, %server_uptime%. PlaceholderAPI placeholders are also
+# supported when PlaceholderAPI is installed (for example, %bungee_pvp%).
 
 tab-list:
   enabled: true

@@ -1,5 +1,6 @@
 package zeb.deluxeg4.utilityplus.managers;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
@@ -109,14 +110,21 @@ public class TabListManager {
     }
 
     private void updatePlayerTabList(Player player, double tps, String uptime, String onlineCount) {
-        String header = this.formatLines(this.headerLines, player, tps, uptime, onlineCount);
-        String footer = this.formatLines(this.footerLines, player, tps, uptime, onlineCount);
+        String header = this.applyPlaceholderAPI(player, this.formatLines(this.headerLines, player, tps, uptime, onlineCount));
+        String footer = this.applyPlaceholderAPI(player, this.formatLines(this.footerLines, player, tps, uptime, onlineCount));
         String[] previous = this.lastSent.get(player.getUniqueId());
         if (previous != null && previous[0].equals(header) && previous[1].equals(footer)) {
             return;
         }
         player.sendPlayerListHeaderAndFooter(Messages.legacy(header), Messages.legacy(footer));
         this.lastSent.put(player.getUniqueId(), new String[]{header, footer});
+    }
+
+    private String applyPlaceholderAPI(Player player, String text) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            return text;
+        }
+        return PlaceholderAPI.setPlaceholders(player, text);
     }
 
     private void clearAll() {
